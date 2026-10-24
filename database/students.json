@@ -26,5 +26,12 @@
     "email": "Ab@example.com",
     "course": "cse",
     "age": 19
+  },
+  {
+    "id": "26cbda998b12e57d20604ba3",
+    "name": "Kenzo Tenma",
+    "email": "raka143gupta@gmail.com",
+    "course": "CSE",
+    "age": 19
   }
 ]

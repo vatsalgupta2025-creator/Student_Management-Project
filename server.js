@@ -277,8 +277,8 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/status' && req.method === 'GET') {
     return sendJson(res, 200, {
       backend: 'connected',
-      mongodb:  'na',   // MongoDB is used by Spring Boot, not this Node server
-      mysql:    'na'    // MySQL/JDBC is used by Spring Boot, not this Node server
+      mongodb: 'na',     // MongoDB is used by Spring Boot, not this Node.js server
+      storage: 'json'    // This Node.js server stores data in flat JSON files
     });
   }
 
@@ -308,7 +308,10 @@ const server = http.createServer(async (req, res) => {
 
     res.writeHead(200, {
       'Content-Type': contentType,
-      'Access-Control-Allow-Origin': '*'
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
     });
     fs.createReadStream(filePath).pipe(res);
   });

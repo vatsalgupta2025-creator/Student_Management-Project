@@ -183,30 +183,61 @@ function formatDateTime(raw) {
 async function checkStatus() {
   try {
     const s = await apiFetch(API_STATUS);
-    // 'connected' = green, 'error' = red, 'na' = grey (not applicable for this server)
-    setStatusRow('backend', s.backend === 'connected', s.backend);
+
+    // Backend is always "connected" if we got a response
+    setStatusRow('backend', true, 'connected');
+
+    // MongoDB: connected (Spring Boot) | na (Node.js dev server)
     setStatusRow('mongodb', s.mongodb === 'connected', s.mongodb);
-    setStatusRow('mysql',   s.mysql   === 'connected', s.mysql);
+
+    // Storage: show what the active server uses:
+    //   Spring Boot → MySQL via JDBC ("connected" or "error")
+    //   Node.js dev → JSON flat-files ("json")
+    const storageVal = s.mysql !== undefined ? s.mysql : s.storage;
+    setStatusRow('storage', storageVal === 'connected' || storageVal === 'json', storageVal);
+
   } catch {
+    // Can't reach /api/status at all
     setStatusRow('backend', false, 'error');
     setStatusRow('mongodb', false, 'error');
-    setStatusRow('mysql',   false, 'error');
+    setStatusRow('storage', false, 'error');
   }
 }
 
 function setStatusRow(key, ok, rawValue) {
   const dot = $(`dot-${key}`);
   const val = $(`val-${key}`);
-  const na  = rawValue === 'na';
+  if (!dot && !val) return; // element doesn't exist in this layout
 
-  if (dot) {
-    dot.className = `status-dot ${na ? '' : ok ? 'ok' : 'error'}`;
-    if (na) dot.style.background = '#64748b'; // neutral grey
-    else    dot.style.background = '';
+  // Determine display text and colour class
+  let text, cls, dotCls;
+
+  if (rawValue === 'na') {
+    text   = 'N/A';
+    cls    = 'na';
+    dotCls = 'na';
+  } else if (rawValue === 'json') {
+    text   = 'JSON';
+    cls    = 'ok';
+    dotCls = 'ok';
+  } else if (rawValue === 'error' || rawValue === 'Offline') {
+    text   = 'Offline';
+    cls    = 'error';
+    dotCls = 'error';
+  } else if (ok) {
+    text   = 'OK';
+    cls    = 'ok';
+    dotCls = 'ok';
+  } else {
+    text   = 'Offline';
+    cls    = 'error';
+    dotCls = 'error';
   }
+
+  if (dot) dot.className = `status-dot ${dotCls}`;
   if (val) {
-    val.textContent = na ? 'N/A' : ok ? 'OK' : 'Offline';
-    val.className   = `status-val ${na ? '' : ok ? 'ok' : 'error'}`;
+    val.textContent = text;
+    val.className   = `status-val ${cls}`;
   }
 }
 
