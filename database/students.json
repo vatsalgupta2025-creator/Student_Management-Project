@@ -1,0 +1,30 @@
+[
+  {
+    "id": "664b3a1f8e21901a8b1c0001",
+    "name": "Aditi Sharma",
+    "email": "aditi.sharma@example.com",
+    "course": "Computer Science",
+    "age": 20
+  },
+  {
+    "id": "664b3a1f8e21901a8b1c0002",
+    "name": "Rahul Verma",
+    "email": "rahul.verma@example.com",
+    "course": "Information Technology",
+    "age": 21
+  },
+  {
+    "id": "664b3a1f8e21901a8b1c0003",
+    "name": "Priya Patel",
+    "email": "priya.patel@example.com",
+    "course": "Data Science",
+    "age": 19
+  },
+  {
+    "id": "5fd7d863958fb77c5c4da53a",
+    "name": "Ab",
+    "email": "Ab@example.com",
+    "course": "cse",
+    "age": 19
+  }
+]
