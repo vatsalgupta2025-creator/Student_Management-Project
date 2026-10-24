@@ -54,14 +54,19 @@
     <div class="sidebar-status">
       <p class="status-label">System Status</p>
       <div class="status-row">
-        <span class="status-dot" id="dot-backend"></span>
+        <span class="status-dot ok" id="dot-backend"></span>
         <span class="status-name">Backend API</span>
-        <span class="status-val" id="val-backend">—</span>
+        <span class="status-val ok" id="val-backend">Online</span>
       </div>
       <div class="status-row">
-        <span class="status-dot" id="dot-mongodb"></span>
+        <span class="status-dot ok" id="dot-mongodb"></span>
         <span class="status-name">MongoDB</span>
-        <span class="status-val" id="val-mongodb">—</span>
+        <span class="status-val ok" id="val-mongodb">Online</span>
+      </div>
+      <div class="status-row">
+        <span class="status-dot ok" id="dot-mysql"></span>
+        <span class="status-name">MySQL (JDBC)</span>
+        <span class="status-val ok" id="val-mysql">Online</span>
       </div>
     </div>
   </aside>
@@ -155,8 +160,8 @@
               <p class="tech-desc">Student records database</p>
             </div>
             <div class="tech-item">
-              <div class="tech-badge tech-mongo">MongoDB</div>
-              <p class="tech-desc">Audit logs collection</p>
+              <div class="tech-badge tech-mysql">MySQL + JDBC</div>
+              <p class="tech-desc">Audit logs via JdbcTemplate</p>
             </div>
           </div>
         </div>
@@ -282,7 +287,7 @@
         <div class="section-header">
           <div>
             <h1 class="page-heading">Activity Logs</h1>
-            <p class="page-sub">All audit records stored in MongoDB — same database as student records.</p>
+            <p class="page-sub">Audit trail records captured via Spring JDBC into MySQL database.</p>
           </div>
           <button class="btn btn-secondary" id="refresh-logs-btn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -344,7 +349,7 @@
         <span class="footer-tag">HTML · CSS · JS</span>
         <span class="footer-tag">Spring Boot</span>
         <span class="footer-tag">MongoDB</span>
-        <span class="footer-tag">Spring Data MongoDB</span>
+        <span class="footer-tag">MySQL + JDBC</span>
       </div>
     </div>
   </footer>

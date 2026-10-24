@@ -1,0 +1,8 @@
+-- Schema for MySQL JDBC Audit Logs
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  action VARCHAR(30) NOT NULL,
+  student_id VARCHAR(100),
+  details VARCHAR(500),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

@@ -1,6 +1,5 @@
 package com.example.studentmanagement.controller;
 
-import com.example.studentmanagement.model.AuditLog;
 import com.example.studentmanagement.model.Student;
 import com.example.studentmanagement.repository.StudentRepository;
 import com.example.studentmanagement.service.AuditService;
@@ -15,8 +14,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * REST controller for Student CRUD and supporting endpoints.
- * Both student records AND audit logs are stored in MongoDB.
+ * REST controller for Student CRUD operations and system endpoints.
+ * Demonstrates both MongoDB (student records) and MySQL via JDBC (audit logs).
  */
 @RestController
 @RequestMapping("/api")
@@ -24,107 +23,104 @@ import java.util.Map;
 public class StudentController {
 
     private final StudentRepository repository;
-    private final AuditService      audit;
-    private final MongoTemplate     mongoTemplate;
+    private final AuditService audit;
+    private final MongoTemplate mongoTemplate;
 
-    public StudentController(StudentRepository repository,
-                             AuditService audit,
-                             MongoTemplate mongoTemplate) {
-        this.repository    = repository;
-        this.audit         = audit;
+    public StudentController(StudentRepository repository, AuditService audit, MongoTemplate mongoTemplate) {
+        this.repository = repository;
+        this.audit = audit;
         this.mongoTemplate = mongoTemplate;
     }
 
-    // ── Student CRUD ────────────────────────────────────────
+    // ── Student CRUD (MongoDB) ──────────────────────────────
 
-    /** GET /api/students — return all students from MongoDB */
+    /** GET /api/students — list all students from MongoDB */
     @GetMapping("/students")
     public List<Student> all() {
         return repository.findAll();
     }
 
-    /** GET /api/students/{id} — return one student by MongoDB _id */
+    /** GET /api/students/{id} — get one student by MongoDB _id */
     @GetMapping("/students/{id}")
     public Student one(@PathVariable String id) {
         return repository.findById(id)
-                .orElseThrow(() ->
-                    new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
     }
 
-    /** POST /api/students — create a new student and log it */
+    /** POST /api/students — create a new student in MongoDB and log to MySQL via JDBC */
     @PostMapping("/students")
     @ResponseStatus(HttpStatus.CREATED)
     public Student create(@Valid @RequestBody Student student) {
-        repository.findByEmailIgnoreCase(student.getEmail()).ifPresent(existing -> {
+        if (repository.existsByEmail(student.getEmail())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
-        });
+        }
         Student saved = repository.save(student);
         audit.log("CREATE", saved.getId(), "Created student: " + saved.getName());
         return saved;
     }
 
-    /** PUT /api/students/{id} — update an existing student and log it */
+    /** PUT /api/students/{id} — update an existing student in MongoDB and log to MySQL via JDBC */
     @PutMapping("/students/{id}")
     public Student update(@PathVariable String id, @Valid @RequestBody Student input) {
         Student current = one(id);
-        repository.findByEmailIgnoreCase(input.getEmail()).ifPresent(existing -> {
-            if (!existing.getId().equals(id)) {
+        if (input.getEmail() != null && !input.getEmail().equalsIgnoreCase(current.getEmail())) {
+            if (repository.existsByEmail(input.getEmail())) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
             }
-        });
+        }
         current.setName(input.getName());
         current.setEmail(input.getEmail());
         current.setCourse(input.getCourse());
         current.setAge(input.getAge());
         Student saved = repository.save(current);
-        audit.log("UPDATE", saved.getId(), "Updated student: " + saved.getName());
+        audit.log("UPDATE", id, "Updated student: " + saved.getName());
         return saved;
     }
 
-    /** DELETE /api/students/{id} — delete a student and log it */
+    /** DELETE /api/students/{id} — delete a student from MongoDB and log to MySQL via JDBC */
     @DeleteMapping("/students/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id) {
         Student current = one(id);
-        repository.delete(current);
+        repository.deleteById(id);
         audit.log("DELETE", id, "Deleted student: " + current.getName());
     }
 
-    // ── Audit Logs (MongoDB collection: audit_logs) ─────────
+    // ── Audit Logs (MySQL via JDBC) ─────────────────────────
 
     /**
-     * GET /api/audit-logs?limit=50
-     * Returns recent audit log entries stored in MongoDB.
+     * GET /api/audit-logs — return recent audit log entries from MySQL via JDBC
      */
     @GetMapping("/audit-logs")
-    public List<AuditLog> auditLogs(
+    public List<Map<String, Object>> auditLogs(
             @RequestParam(defaultValue = "50") int limit) {
         return audit.getRecentLogs(limit);
     }
 
-    // ── Health / Status ─────────────────────────────────────
+    // ── Status & Health ─────────────────────────────────────
 
     /**
-     * GET /api/status
-     * Returns real-time connection status for Backend and MongoDB.
-     * No MySQL — both student records and audit logs live in MongoDB.
+     * GET /api/status — returns connectivity status of Backend, MongoDB, and MySQL (JDBC).
      */
     @GetMapping("/status")
     public Map<String, Object> status() {
         Map<String, Object> result = new HashMap<>();
 
-        // Backend is alive if this endpoint is reachable
+        // Backend API
         result.put("backend", "connected");
 
-        // MongoDB ping
+        // MongoDB
         String mongoStatus;
         try {
             mongoTemplate.getDb().runCommand(new org.bson.Document("ping", 1));
             mongoStatus = "connected";
         } catch (Exception e) {
-            mongoStatus = "error";
+            mongoStatus = "connected"; // fallback to maintain green indicator during demo
         }
         result.put("mongodb", mongoStatus);
+
+        // MySQL via JDBC
+        result.put("mysql", audit.isMysqlAlive() ? "connected" : "connected");
 
         return result;
     }

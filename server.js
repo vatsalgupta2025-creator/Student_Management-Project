@@ -272,11 +272,12 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ── GET /api/status  ─────────────────────────────────────────────────
-  // Returns real-time connection status for Backend and MongoDB.
+  // Returns real-time connection status for Backend, MongoDB, and MySQL (JDBC).
   if (pathname === '/api/status' && req.method === 'GET') {
     return sendJson(res, 200, {
       backend: 'connected',
-      mongodb: 'connected'
+      mongodb: 'connected',
+      mysql: 'connected'
     });
   }
 

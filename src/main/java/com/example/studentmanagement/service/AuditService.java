@@ -1,71 +1,68 @@
 package com.example.studentmanagement.service;
 
-import com.example.studentmanagement.model.AuditLog;
-import com.example.studentmanagement.repository.AuditLogRepository;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
- * AuditService writes and reads audit log entries from MongoDB.
+ * AuditService uses Spring JdbcTemplate (JDBC) to write and read
+ * audit logs in the MySQL database (student_audit_db).
  *
- * MongoDB collection: audit_logs
- * No MySQL or JDBC involved — MongoDB handles everything.
- *
- * Each operation on a student (CREATE / UPDATE / DELETE) is logged
- * as a separate AuditLog document with a timestamp.
+ * Demonstrates JDBC connectivity alongside MongoDB for student records.
  */
 @Service
 public class AuditService {
 
-    private final AuditLogRepository auditLogRepository;
+    private final JdbcTemplate jdbcTemplate;
 
-    public AuditService(AuditLogRepository auditLogRepository) {
-        this.auditLogRepository = auditLogRepository;
+    public AuditService(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     /**
-     * Save a new audit log entry to MongoDB.
-     *
-     * @param action    e.g. "CREATE", "UPDATE", "DELETE"
-     * @param studentId the MongoDB _id of the affected student
-     * @param details   human-readable description of the operation
+     * Insert one audit log entry into MySQL via JDBC.
      */
     public void log(String action, String studentId, String details) {
         try {
-            auditLogRepository.save(new AuditLog(action, studentId, details));
-            System.out.println("[AuditService] " + action + " | " + studentId + " | " + details);
-        } catch (Exception e) {
-            System.err.println("[AuditService] Failed to write audit log: " + e.getMessage());
+            jdbcTemplate.update(
+                "INSERT INTO audit_logs (action, student_id, details) VALUES (?, ?, ?)",
+                action, studentId, details
+            );
+            System.out.println("[AuditService-JDBC] Logged: " + action + " | " + studentId + " | " + details);
+        } catch (DataAccessException e) {
+            // Log warning if MySQL is offline during local testing without crashing app
+            System.err.println("[AuditService-JDBC] Notice: Could not write audit log to MySQL: " + e.getMessage());
         }
     }
 
     /**
-     * Retrieve the most recent audit log entries from MongoDB.
-     *
-     * @param limit maximum number of entries to return (newest first)
+     * Fetch the most recent audit log entries from MySQL via JDBC.
+     * Returns an empty list if MySQL is unavailable.
      */
-    public List<AuditLog> getRecentLogs(int limit) {
+    public List<Map<String, Object>> getRecentLogs(int limit) {
         try {
-            return auditLogRepository.findAllByOrderByCreatedAtDesc(
-                PageRequest.of(0, limit)
+            return jdbcTemplate.queryForList(
+                "SELECT id, action, student_id, details, created_at FROM audit_logs ORDER BY id DESC LIMIT ?",
+                limit
             );
-        } catch (Exception e) {
-            System.err.println("[AuditService] Failed to read audit logs: " + e.getMessage());
+        } catch (DataAccessException e) {
+            System.err.println("[AuditService-JDBC] Notice: Could not read audit logs from MySQL: " + e.getMessage());
             return Collections.emptyList();
         }
     }
 
     /**
-     * Check if MongoDB is reachable by running a lightweight count query.
+     * Check whether the JDBC/MySQL connection is alive.
      */
-    public boolean isMongoAlive() {
+    public boolean isMysqlAlive() {
         try {
-            auditLogRepository.count();
+            jdbcTemplate.queryForObject("SELECT 1", Integer.class);
             return true;
-        } catch (Exception e) {
+        } catch (DataAccessException e) {
             return false;
         }
     }

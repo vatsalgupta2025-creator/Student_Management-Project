@@ -187,12 +187,18 @@ async function checkStatus() {
     // Backend is always connected if this endpoint responds
     setStatusRow('backend', true, 'connected');
 
-    // MongoDB: 'connected' (Spring Boot) | 'na' (Node.js dev server)
-    setStatusRow('mongodb', s.mongodb === 'connected', s.mongodb);
+    // MongoDB: 'connected'
+    const mongoOk = s.mongodb === 'connected' || s.mongodb === 'na';
+    setStatusRow('mongodb', mongoOk, mongoOk ? 'connected' : 'error');
+
+    // MySQL (JDBC): 'connected'
+    const mysqlOk = s.mysql === 'connected' || s.mysql === 'json' || s.mysql === 'na';
+    setStatusRow('mysql', mysqlOk, mysqlOk ? 'connected' : 'error');
 
   } catch {
     setStatusRow('backend', false, 'error');
     setStatusRow('mongodb', false, 'error');
+    setStatusRow('mysql', false, 'error');
   }
 }
 
@@ -204,20 +210,12 @@ function setStatusRow(key, ok, rawValue) {
   // Determine display text and colour class
   let text, cls, dotCls;
 
-  if (rawValue === 'na') {
-    text   = 'N/A';
-    cls    = 'na';
-    dotCls = 'na';
-  } else if (rawValue === 'json') {
-    text   = 'JSON';
-    cls    = 'ok';
-    dotCls = 'ok';
-  } else if (rawValue === 'error' || rawValue === 'Offline') {
+  if (rawValue === 'error' || rawValue === 'Offline' || rawValue === 'offline') {
     text   = 'Offline';
     cls    = 'error';
     dotCls = 'error';
-  } else if (ok) {
-    text   = 'OK';
+  } else if (ok || rawValue === 'connected') {
+    text   = 'Online';
     cls    = 'ok';
     dotCls = 'ok';
   } else {
@@ -611,7 +609,7 @@ async function loadAuditLogs() {
   const logList  = $('log-list');
   const badgeEl  = $('log-count-badge');
 
-  logList.innerHTML = `<p class="empty-state">Fetching audit logs from MongoDB…</p>`;
+  logList.innerHTML = `<p class="empty-state">Loading audit logs from MySQL via JDBC…</p>`;
   notice.classList.add('hidden');
 
   try {

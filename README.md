@@ -1,29 +1,33 @@
 # Student Management System
 
-A full-stack student management application built with modern HTML/CSS/JavaScript (vanilla), Java Spring Boot 3 REST APIs, and **MongoDB** for all persistence (both student records and system activity audit logs).
+A full-stack student management application demonstrating all four core college project components:
+1. **Frontend**: HTML5, CSS3, Vanilla JavaScript (responsive dashboard, modern design)
+2. **Backend**: Java 17 + Spring Boot 3 REST APIs
+3. **NoSQL Database**: MongoDB for primary student records
+4. **Relational Database & JDBC**: MySQL + Spring `JdbcTemplate` for system audit logging
 
 ---
 
 ## Architecture & Technology Stack
 
-| Layer | Technology | Details |
+| Component | Technology | Role |
 |---|---|---|
-| **Frontend** | HTML5, CSS3, Vanilla JavaScript | Responsive dashboard, live statistics, quick filters, search, modal forms, status indicators |
-| **Backend API** | Java 17 + Spring Boot 3 | RESTful controllers, DTO validation (`@Valid`, `@NotBlank`, `@Email`, `@Min`), global exception handling |
-| **Primary Database** | MongoDB | Stores student profile documents in the `students` collection |
-| **Audit Logs** | MongoDB | Stores create, update, and delete audit events in the `audit_logs` collection |
+| **Frontend** | HTML5, CSS3, Vanilla JS | Interactive student directory, live stats, instant search, filters, modal forms |
+| **Backend REST API** | Java 17 + Spring Boot 3 | REST controllers, Bean Validation (`@NotBlank`, `@Email`, `@Min`), error handling |
+| **NoSQL Database** | MongoDB | Stores student profile documents in collection `students` |
+| **JDBC Connectivity** | MySQL + `JdbcTemplate` | Captures CRUD audit logs (`CREATE`, `UPDATE`, `DELETE`) in table `audit_logs` |
 
 ---
 
 ## Key Features
 
-- **Student Directory**: Add, view, edit, and delete student records with instant UI updates.
-- **Search & Filter**: Real-time multi-field search (by name, email, or course) + course filter pills.
-- **Sorting**: Sort table columns by name, course, or age ascending/descending.
-- **Activity & Audit Logging**: Automatic background recording of every student addition, modification, and deletion into MongoDB.
-- **Live Connection Indicators**: Real-time status display in the sidebar for backend API and MongoDB.
-- **Quick-Fill Demo**: One-click demo button to instantly pre-fill sample student data.
-- **Data Export**: Export student table directly to JSON format.
+- **Student Directory**: Full CRUD (Create, Read, Update, Delete) with live UI synchronization.
+- **Search & Quick Filters**: Search across name, email, course + quick filter pills.
+- **Column Sorting**: Sort by name, course, or age ascending/descending.
+- **Audit Logging via JDBC**: Automatically logs every student addition, update, or deletion into MySQL with timestamp.
+- **Real-Time System Status**: Sidebar indicators showing live connectivity for **Backend API**, **MongoDB**, and **MySQL (JDBC)**.
+- **Quick-Fill Demo**: One-click demo button to instantly populate sample student records.
+- **JSON Export**: Export student table data directly to JSON.
 
 ---
 
@@ -38,23 +42,23 @@ StudentManagementProject/
 │   │   │   ├── controller/
 │   │   │   │   └── StudentController.java         # REST endpoints for students, logs, status
 │   │   │   ├── model/
-│   │   │   │   ├── Student.java                   # MongoDB document for student records
-│   │   │   │   └── AuditLog.java                  # MongoDB document for audit trails
+│   │   │   │   └── Student.java                   # MongoDB document model
 │   │   │   ├── repository/
-│   │   │   │   ├── StudentRepository.java         # Spring Data MongoRepository for students
-│   │   │   │   └── AuditLogRepository.java        # Spring Data MongoRepository for logs
+│   │   │   │   └── StudentRepository.java         # Spring Data MongoRepository
 │   │   │   └── service/
-│   │   │       └── AuditService.java              # Service layer logging student actions
+│   │   │       └── AuditService.java              # JDBC service logging via JdbcTemplate
 │   │   └── resources/
-│   │       ├── application.properties             # Spring configuration (port, Mongo URI)
+│   │       ├── application.properties             # Spring & database configuration
+│   │       ├── schema.sql                         # MySQL audit_logs table creation schema
 │   │       └── static/                            # Frontend assets
 │   │           ├── index.html                     # Application UI
-│   │           ├── style.css                      # Design system & styles
-│   │           └── app.js                         # Dynamic interactions & REST API calls
+│   │           ├── style.css                      # Design system & responsive layout
+│   │           └── app.js                         # REST API calls and UI state
 ├── database/
-│   └── setup_mongodb.js                           # MongoDB collection and index initialization
+│   ├── setup.sql                                  # MySQL database and table setup script
+│   └── setup_mongodb.js                           # MongoDB collection initialization
 ├── server.js                                      # Quick local development server
-├── pom.xml                                        # Maven dependencies
+├── pom.xml                                        # Maven dependencies (Web, MongoDB, JDBC, MySQL)
 └── README.md
 ```
 
@@ -62,29 +66,38 @@ StudentManagementProject/
 
 ## How to Run
 
-### Option 1: Using Java & Spring Boot (Production / College Demo)
+### Option 1: Java & Spring Boot (Full College Demo)
 
 #### Prerequisites
 1. **Java JDK 17** or newer installed.
-2. **MongoDB** running locally on port `27017` (or provide a remote URI in `application.properties`).
+2. **MongoDB** running locally on port `27017`.
+3. **MySQL** running locally on port `3306`.
 
-#### Configuration (`src/main/resources/application.properties`)
+#### Step 1: Configure Databases
+In `src/main/resources/application.properties`:
 ```properties
-server.port=8080
+# MongoDB URI
 spring.data.mongodb.uri=mongodb://localhost:27017/student_management
+
+# MySQL JDBC Configuration
+spring.datasource.url=jdbc:mysql://localhost:3306/student_audit_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+spring.datasource.username=root
+spring.datasource.password=YOUR_MYSQL_PASSWORD
 ```
 
-#### Run Spring Boot
+Run `database/setup.sql` in MySQL to initialize `student_audit_db` if not using auto-create.
+
+#### Step 2: Start Spring Boot
 ```bash
 mvn spring-boot:run
 ```
-*(Or open the project in IntelliJ IDEA / Eclipse and run `StudentManagementApplication.java`)*
+Open **http://localhost:8080** in your browser.
 
 ---
 
 ### Option 2: Quick Start via Node.js Dev Server
 
-If running in an environment without Java 17 or Maven installed:
+To preview and interact with the full web interface immediately:
 ```bash
 node server.js
 ```
@@ -92,22 +105,18 @@ Open **http://localhost:8080** in your browser.
 
 ---
 
-## Verifying Data in MongoDB Shell (`mongosh`)
+## Database Verification
 
-Connect to MongoDB:
-```bash
-mongosh
-```
-
-Inspect records:
+### MongoDB (`mongosh`):
 ```javascript
 use student_management;
-
-// View all students
 db.students.find().pretty();
+```
 
-// View audit logs recorded by the system
-db.audit_logs.find().sort({ createdAt: -1 }).pretty();
+### MySQL (Audit Logs via JDBC):
+```sql
+USE student_audit_db;
+SELECT * FROM audit_logs ORDER BY created_at DESC;
 ```
 
 ---
@@ -116,20 +125,10 @@ db.audit_logs.find().sort({ createdAt: -1 }).pretty();
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/students` | Get all students |
-| `GET` | `/api/students/{id}` | Get student by MongoDB `_id` |
-| `POST` | `/api/students` | Create a new student (logs to `audit_logs`) |
-| `PUT` | `/api/students/{id}` | Update student by ID (logs to `audit_logs`) |
-| `DELETE` | `/api/students/{id}` | Delete student by ID (logs to `audit_logs`) |
-| `GET` | `/api/audit-logs?limit=50` | Retrieve recent activity audit logs |
-| `GET` | `/api/status` | Real-time health check of Backend and MongoDB |
-
-### Example Student JSON Payload
-```json
-{
-  "name": "Aditi Sharma",
-  "email": "aditi.sharma@example.com",
-  "course": "Computer Science",
-  "age": 20
-}
-```
+| `GET` | `/api/students` | Get all students (from MongoDB) |
+| `GET` | `/api/students/{id}` | Get student by ID |
+| `POST` | `/api/students` | Create student (MongoDB) + log via JDBC (MySQL) |
+| `PUT` | `/api/students/{id}` | Update student (MongoDB) + log via JDBC (MySQL) |
+| `DELETE` | `/api/students/{id}` | Delete student (MongoDB) + log via JDBC (MySQL) |
+| `GET` | `/api/audit-logs` | Retrieve recent audit logs (from MySQL via JDBC) |
+| `GET` | `/api/status` | Connection health check (Backend, MongoDB, MySQL) |
