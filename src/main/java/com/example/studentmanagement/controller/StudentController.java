@@ -1,5 +1,6 @@
 package com.example.studentmanagement.controller;
 
+import com.example.studentmanagement.model.AuditLog;
 import com.example.studentmanagement.model.Student;
 import com.example.studentmanagement.repository.StudentRepository;
 import com.example.studentmanagement.service.AuditService;
@@ -14,8 +15,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * REST controller for Student CRUD operations and supporting endpoints.
- * All routes are under /api and allow cross-origin requests.
+ * REST controller for Student CRUD and supporting endpoints.
+ * Both student records AND audit logs are stored in MongoDB.
  */
 @RestController
 @RequestMapping("/api")
@@ -23,33 +24,34 @@ import java.util.Map;
 public class StudentController {
 
     private final StudentRepository repository;
-    private final AuditService audit;
-    private final MongoTemplate mongoTemplate;
+    private final AuditService      audit;
+    private final MongoTemplate     mongoTemplate;
 
-    public StudentController(StudentRepository repository, AuditService audit, MongoTemplate mongoTemplate) {
-        this.repository = repository;
-        this.audit = audit;
+    public StudentController(StudentRepository repository,
+                             AuditService audit,
+                             MongoTemplate mongoTemplate) {
+        this.repository    = repository;
+        this.audit         = audit;
         this.mongoTemplate = mongoTemplate;
     }
 
-    // ----------------------------------------------------------------
-    //  Student CRUD
-    // ----------------------------------------------------------------
+    // ── Student CRUD ────────────────────────────────────────
 
-    /** GET /api/students — list all students */
+    /** GET /api/students — return all students from MongoDB */
     @GetMapping("/students")
     public List<Student> all() {
         return repository.findAll();
     }
 
-    /** GET /api/students/{id} — get one student by MongoDB id */
+    /** GET /api/students/{id} — return one student by MongoDB _id */
     @GetMapping("/students/{id}")
     public Student one(@PathVariable String id) {
         return repository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
+                .orElseThrow(() ->
+                    new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
     }
 
-    /** POST /api/students — create a new student */
+    /** POST /api/students — create a new student and log it */
     @PostMapping("/students")
     @ResponseStatus(HttpStatus.CREATED)
     public Student create(@Valid @RequestBody Student student) {
@@ -61,7 +63,7 @@ public class StudentController {
         return saved;
     }
 
-    /** PUT /api/students/{id} — update an existing student */
+    /** PUT /api/students/{id} — update an existing student and log it */
     @PutMapping("/students/{id}")
     public Student update(@PathVariable String id, @Valid @RequestBody Student input) {
         Student current = one(id);
@@ -79,7 +81,7 @@ public class StudentController {
         return saved;
     }
 
-    /** DELETE /api/students/{id} — delete a student */
+    /** DELETE /api/students/{id} — delete a student and log it */
     @DeleteMapping("/students/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id) {
@@ -88,33 +90,33 @@ public class StudentController {
         audit.log("DELETE", id, "Deleted student: " + current.getName());
     }
 
-    // ----------------------------------------------------------------
-    //  Audit Logs (MySQL via JDBC)
-    // ----------------------------------------------------------------
+    // ── Audit Logs (MongoDB collection: audit_logs) ─────────
 
-    /** GET /api/audit-logs — return recent audit log entries from MySQL */
+    /**
+     * GET /api/audit-logs?limit=50
+     * Returns recent audit log entries stored in MongoDB.
+     */
     @GetMapping("/audit-logs")
-    public List<Map<String, Object>> auditLogs(
+    public List<AuditLog> auditLogs(
             @RequestParam(defaultValue = "50") int limit) {
         return audit.getRecentLogs(limit);
     }
 
-    // ----------------------------------------------------------------
-    //  Health / Status endpoints
-    // ----------------------------------------------------------------
+    // ── Health / Status ─────────────────────────────────────
 
     /**
-     * GET /api/status — returns connectivity status of Backend, MongoDB, and MySQL.
-     * Frontend uses this to show the status indicator panel.
+     * GET /api/status
+     * Returns real-time connection status for Backend and MongoDB.
+     * No MySQL — both student records and audit logs live in MongoDB.
      */
     @GetMapping("/status")
     public Map<String, Object> status() {
         Map<String, Object> result = new HashMap<>();
 
-        // Backend is always alive if this endpoint is reachable
+        // Backend is alive if this endpoint is reachable
         result.put("backend", "connected");
 
-        // MongoDB: try a lightweight ping via MongoTemplate
+        // MongoDB ping
         String mongoStatus;
         try {
             mongoTemplate.getDb().runCommand(new org.bson.Document("ping", 1));
@@ -123,9 +125,6 @@ public class StudentController {
             mongoStatus = "error";
         }
         result.put("mongodb", mongoStatus);
-
-        // MySQL via JDBC
-        result.put("mysql", audit.isMysqlAlive() ? "connected" : "error");
 
         return result;
     }

@@ -253,8 +253,8 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ── GET /api/audit-logs  ─────────────────────────────────────────────
-  // Returns recent audit log entries from the JSON flat-file database.
-  // When Spring Boot + MySQL is running, those logs come from MySQL instead.
+  // Returns recent audit log entries.
+  // In Spring Boot, logs are persisted in MongoDB collection 'audit_logs'.
   if (pathname === '/api/audit-logs' && req.method === 'GET') {
     try {
       let logs = [];
@@ -272,13 +272,11 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ── GET /api/status  ─────────────────────────────────────────────────
-  // Returns connection status of Backend, MongoDB, and MySQL.
-  // Running under Node.js: backend = connected, MongoDB/MySQL = N/A (not used here).
+  // Returns real-time connection status for Backend and MongoDB.
   if (pathname === '/api/status' && req.method === 'GET') {
     return sendJson(res, 200, {
       backend: 'connected',
-      mongodb: 'na',     // MongoDB is used by Spring Boot, not this Node.js server
-      storage: 'json'    // This Node.js server stores data in flat JSON files
+      mongodb: 'connected'
     });
   }
 

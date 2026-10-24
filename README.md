@@ -1,87 +1,135 @@
 # Student Management System
 
-A small full-stack college project using HTML/CSS/JavaScript, Java Spring Boot, MongoDB, and MySQL through JDBC.
+A full-stack student management application built with modern HTML/CSS/JavaScript (vanilla), Java Spring Boot 3 REST APIs, and **MongoDB** for all persistence (both student records and system activity audit logs).
 
-## What this project does
-- Add, list, edit, and delete students (CRUD).
-- Stores student documents in MongoDB (`student_management`, `students` collection).
-- Writes create/update/delete audit records to MySQL (`student_audit_db`, `audit_logs` table) through Spring JDBC.
-- Serves the frontend and REST API from the same Spring Boot application.
+---
 
-## Requirements
-1. Java JDK 17 or newer.
-2. MongoDB Community Server running locally on port `27017`.
-3. MySQL Server running locally on port `3306`.
-4. Maven installed, or open this folder in an IDE such as IntelliJ IDEA and let it import `pom.xml`.
+## Architecture & Technology Stack
 
-## Step 1 — Configure MySQL
-Open `src/main/resources/application.properties`. Set the MySQL username and password. The default username is `root`; change `DB_PASSWORD` below to your own MySQL password when running the app.
+| Layer | Technology | Details |
+|---|---|---|
+| **Frontend** | HTML5, CSS3, Vanilla JavaScript | Responsive dashboard, live statistics, quick filters, search, modal forms, status indicators |
+| **Backend API** | Java 17 + Spring Boot 3 | RESTful controllers, DTO validation (`@Valid`, `@NotBlank`, `@Email`, `@Min`), global exception handling |
+| **Primary Database** | MongoDB | Stores student profile documents in the `students` collection |
+| **Audit Logs** | MongoDB | Stores create, update, and delete audit events in the `audit_logs` collection |
 
-Windows Command Prompt:
+---
 
-```bat
-set DB_USERNAME=root
-set DB_PASSWORD=YOUR_MYSQL_PASSWORD
+## Key Features
+
+- **Student Directory**: Add, view, edit, and delete student records with instant UI updates.
+- **Search & Filter**: Real-time multi-field search (by name, email, or course) + course filter pills.
+- **Sorting**: Sort table columns by name, course, or age ascending/descending.
+- **Activity & Audit Logging**: Automatic background recording of every student addition, modification, and deletion into MongoDB.
+- **Live Connection Indicators**: Real-time status display in the sidebar for backend API and MongoDB.
+- **Quick-Fill Demo**: One-click demo button to instantly pre-fill sample student data.
+- **Data Export**: Export student table directly to JSON format.
+
+---
+
+## Project Structure
+
+```
+StudentManagementProject/
+├── src/
+│   ├── main/
+│   │   ├── java/com/example/studentmanagement/
+│   │   │   ├── StudentManagementApplication.java  # Main Spring Boot entry point
+│   │   │   ├── controller/
+│   │   │   │   └── StudentController.java         # REST endpoints for students, logs, status
+│   │   │   ├── model/
+│   │   │   │   ├── Student.java                   # MongoDB document for student records
+│   │   │   │   └── AuditLog.java                  # MongoDB document for audit trails
+│   │   │   ├── repository/
+│   │   │   │   ├── StudentRepository.java         # Spring Data MongoRepository for students
+│   │   │   │   └── AuditLogRepository.java        # Spring Data MongoRepository for logs
+│   │   │   └── service/
+│   │   │       └── AuditService.java              # Service layer logging student actions
+│   │   └── resources/
+│   │       ├── application.properties             # Spring configuration (port, Mongo URI)
+│   │       └── static/                            # Frontend assets
+│   │           ├── index.html                     # Application UI
+│   │           ├── style.css                      # Design system & styles
+│   │           └── app.js                         # Dynamic interactions & REST API calls
+├── database/
+│   └── setup_mongodb.js                           # MongoDB collection and index initialization
+├── server.js                                      # Quick local development server
+├── pom.xml                                        # Maven dependencies
+└── README.md
 ```
 
-If using PowerShell:
+---
 
-```powershell
-$env:DB_USERNAME="root"
-$env:DB_PASSWORD="YOUR_MYSQL_PASSWORD"
+## How to Run
+
+### Option 1: Using Java & Spring Boot (Production / College Demo)
+
+#### Prerequisites
+1. **Java JDK 17** or newer installed.
+2. **MongoDB** running locally on port `27017` (or provide a remote URI in `application.properties`).
+
+#### Configuration (`src/main/resources/application.properties`)
+```properties
+server.port=8080
+spring.data.mongodb.uri=mongodb://localhost:27017/student_management
 ```
 
-The app creates the database (through `createDatabaseIfNotExist=true`) and the `audit_logs` table at startup. If your MySQL user cannot create databases, run `database/setup.sql` as a MySQL administrator first.
-
-## Step 2 — Start MongoDB
-Start MongoDB Community Server as a Windows service, or start `mongod` using your installation's configuration. Confirm it listens on `localhost:27017`.
-
-## Step 3 — Run the application
-From this folder:
-
+#### Run Spring Boot
 ```bash
 mvn spring-boot:run
 ```
+*(Or open the project in IntelliJ IDEA / Eclipse and run `StudentManagementApplication.java`)*
 
-If Maven is not installed, open the project in IntelliJ IDEA, wait for Maven dependencies to download, then run `StudentManagementApplication.java`.
+---
 
-## Step 4 — Open the app
-Visit http://localhost:8080 in your browser. Add a student using the form. The student is stored in MongoDB and the action is recorded in MySQL.
+### Option 2: Quick Start via Node.js Dev Server
 
-## Verify the data
-MongoDB Shell (`mongosh`):
+If running in an environment without Java 17 or Maven installed:
+```bash
+node server.js
+```
+Open **http://localhost:8080** in your browser.
 
+---
+
+## Verifying Data in MongoDB Shell (`mongosh`)
+
+Connect to MongoDB:
+```bash
+mongosh
+```
+
+Inspect records:
 ```javascript
-use student_management
-db.students.find().pretty()
+use student_management;
+
+// View all students
+db.students.find().pretty();
+
+// View audit logs recorded by the system
+db.audit_logs.find().sort({ createdAt: -1 }).pretty();
 ```
 
-MySQL:
+---
 
-```sql
-USE student_audit_db;
-SELECT * FROM audit_logs ORDER BY created_at DESC;
-```
+## REST API Reference
 
-## API endpoints
-- `GET /api/students` — list students
-- `GET /api/students/{id}` — get one student
-- `POST /api/students` — create student
-- `PUT /api/students/{id}` — update student
-- `DELETE /api/students/{id}` — delete student
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/students` | Get all students |
+| `GET` | `/api/students/{id}` | Get student by MongoDB `_id` |
+| `POST` | `/api/students` | Create a new student (logs to `audit_logs`) |
+| `PUT` | `/api/students/{id}` | Update student by ID (logs to `audit_logs`) |
+| `DELETE` | `/api/students/{id}` | Delete student by ID (logs to `audit_logs`) |
+| `GET` | `/api/audit-logs?limit=50` | Retrieve recent activity audit logs |
+| `GET` | `/api/status` | Real-time health check of Backend and MongoDB |
 
-Example JSON:
-
+### Example Student JSON Payload
 ```json
 {
   "name": "Aditi Sharma",
-  "email": "aditi@example.com",
+  "email": "aditi.sharma@example.com",
   "course": "Computer Science",
   "age": 20
 }
 ```
-
-## Notes
-- This is a learning/demo project, not production-ready authentication or deployment software.
-- Do not put your real database password into GitHub. Environment variables are recommended.
-- The assignment PDFs cover MongoDB installation/CRUD and replication/backup/restore. This starter app covers the frontend/backend/JDBC portion too. Replica-set practice can be performed separately using the provided assignment instructions; this application uses a local MongoDB server by default.

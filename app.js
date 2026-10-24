@@ -184,23 +184,15 @@ async function checkStatus() {
   try {
     const s = await apiFetch(API_STATUS);
 
-    // Backend is always "connected" if we got a response
+    // Backend is always connected if this endpoint responds
     setStatusRow('backend', true, 'connected');
 
-    // MongoDB: connected (Spring Boot) | na (Node.js dev server)
+    // MongoDB: 'connected' (Spring Boot) | 'na' (Node.js dev server)
     setStatusRow('mongodb', s.mongodb === 'connected', s.mongodb);
 
-    // Storage: show what the active server uses:
-    //   Spring Boot → MySQL via JDBC ("connected" or "error")
-    //   Node.js dev → JSON flat-files ("json")
-    const storageVal = s.mysql !== undefined ? s.mysql : s.storage;
-    setStatusRow('storage', storageVal === 'connected' || storageVal === 'json', storageVal);
-
   } catch {
-    // Can't reach /api/status at all
     setStatusRow('backend', false, 'error');
     setStatusRow('mongodb', false, 'error');
-    setStatusRow('storage', false, 'error');
   }
 }
 
@@ -619,7 +611,7 @@ async function loadAuditLogs() {
   const logList  = $('log-list');
   const badgeEl  = $('log-count-badge');
 
-  logList.innerHTML = `<p class="empty-state">Fetching audit logs…</p>`;
+  logList.innerHTML = `<p class="empty-state">Fetching audit logs from MongoDB…</p>`;
   notice.classList.add('hidden');
 
   try {
@@ -627,28 +619,22 @@ async function loadAuditLogs() {
     badgeEl.textContent = `${logs.length} entr${logs.length === 1 ? 'y' : 'ies'}`;
     $('nav-logs-count').textContent = logs.length > 99 ? '99+' : logs.length;
 
-    // Check if we're running under Node.js (no MySQL) vs Spring Boot
+    // Detect Node.js dev server (no real MongoDB)
     const statusData = await apiFetch(API_STATUS).catch(() => ({}));
-    const isNodeServer = statusData.mysql === 'na';
-
-    if (isNodeServer && logs.length === 0) {
-      notice.className = 'info-notice';
-      notice.style.cssText = 'background:#eff6ff;border-color:#bfdbfe;color:#1e40af';
-      notice.classList.remove('hidden');
-      $('mysql-notice-text').textContent =
-        'Running in Node.js dev mode — audit logs are stored in database/audit_logs.json. ' +
-        'Run Spring Boot + MySQL to use real JDBC logging.';
-      logList.innerHTML = `<p class="empty-state">No audit entries yet. Add, edit, or delete a student to create one.</p>`;
-      return;
-    }
+    const isNodeServer = statusData.mongodb === 'na';
 
     if (isNodeServer) {
       notice.className = 'info-notice';
       notice.style.cssText = 'background:#eff6ff;border-color:#bfdbfe;color:#1e40af';
       notice.classList.remove('hidden');
       $('mysql-notice-text').textContent =
-        'Node.js dev mode: logs come from database/audit_logs.json (not MySQL). ' +
-        'Run Spring Boot + MySQL to use real JDBC logging.';
+        'Running in Node.js dev mode — logs are stored in database/audit_logs.json. ' +
+        'Run Spring Boot to use real MongoDB audit logs.';
+    }
+
+    if (logs.length === 0) {
+      logList.innerHTML = `<p class="empty-state">No audit entries yet. Add, edit, or delete a student to create one.</p>`;
+      return;
     }
 
     renderRecentLogs(logs, 'log-list');
@@ -657,7 +643,7 @@ async function loadAuditLogs() {
     notice.style.cssText = '';
     notice.classList.remove('hidden');
     $('mysql-notice-text').textContent =
-      `Cannot fetch logs: ${err.message}. If using Spring Boot, ensure DB_USERNAME and DB_PASSWORD are set and MySQL is running.`;
+      `Cannot fetch logs: ${err.message}. Make sure the backend is running.`;
     logList.innerHTML = `<p class="empty-state" style="border-color:#fecaca;background:#fef2f2;color:#991b1b;">Audit logs unavailable.</p>`;
     badgeEl.textContent = '0 entries';
   }

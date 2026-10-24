@@ -63,11 +63,6 @@
         <span class="status-name">MongoDB</span>
         <span class="status-val" id="val-mongodb">—</span>
       </div>
-      <div class="status-row">
-        <span class="status-dot" id="dot-storage"></span>
-        <span class="status-name">Storage</span>
-        <span class="status-val" id="val-storage">—</span>
-      </div>
     </div>
   </aside>
 
@@ -157,11 +152,11 @@
             </div>
             <div class="tech-item">
               <div class="tech-badge tech-mongo">MongoDB</div>
-              <p class="tech-desc">Primary student records DB</p>
+              <p class="tech-desc">Student records database</p>
             </div>
             <div class="tech-item">
-              <div class="tech-badge tech-mysql">MySQL + JDBC</div>
-              <p class="tech-desc">Audit log via JdbcTemplate</p>
+              <div class="tech-badge tech-mongo">MongoDB</div>
+              <p class="tech-desc">Audit logs collection</p>
             </div>
           </div>
         </div>
@@ -287,7 +282,7 @@
         <div class="section-header">
           <div>
             <h1 class="page-heading">Activity Logs</h1>
-            <p class="page-sub">Real audit records written to MySQL via Spring JdbcTemplate.</p>
+            <p class="page-sub">All audit records stored in MongoDB — same database as student records.</p>
           </div>
           <button class="btn btn-secondary" id="refresh-logs-btn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -349,7 +344,7 @@
         <span class="footer-tag">HTML · CSS · JS</span>
         <span class="footer-tag">Spring Boot</span>
         <span class="footer-tag">MongoDB</span>
-        <span class="footer-tag">MySQL + JDBC</span>
+        <span class="footer-tag">Spring Data MongoDB</span>
       </div>
     </div>
   </footer>
