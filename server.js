@@ -252,6 +252,36 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 405, { message: 'Method Not Allowed' });
   }
 
+  // ── GET /api/audit-logs  ─────────────────────────────────────────────
+  // Returns recent audit log entries from the JSON flat-file database.
+  // When Spring Boot + MySQL is running, those logs come from MySQL instead.
+  if (pathname === '/api/audit-logs' && req.method === 'GET') {
+    try {
+      let logs = [];
+      if (fs.existsSync(AUDIT_FILE)) {
+        logs = JSON.parse(fs.readFileSync(AUDIT_FILE, 'utf8') || '[]');
+      }
+      // Most-recent first, honour optional ?limit= query param
+      const limitParam = parsedUrl.searchParams.get('limit');
+      const limit = limitParam ? Math.max(1, parseInt(limitParam, 10)) : 50;
+      logs = logs.slice(-limit).reverse();
+      return sendJson(res, 200, logs);
+    } catch (err) {
+      return sendJson(res, 500, { message: 'Could not read audit logs: ' + err.message });
+    }
+  }
+
+  // ── GET /api/status  ─────────────────────────────────────────────────
+  // Returns connection status of Backend, MongoDB, and MySQL.
+  // Running under Node.js: backend = connected, MongoDB/MySQL = N/A (not used here).
+  if (pathname === '/api/status' && req.method === 'GET') {
+    return sendJson(res, 200, {
+      backend: 'connected',
+      mongodb:  'na',   // MongoDB is used by Spring Boot, not this Node server
+      mysql:    'na'    // MySQL/JDBC is used by Spring Boot, not this Node server
+    });
+  }
+
   // Static File Serving
   let relativePath = pathname === '/' ? 'index.html' : pathname.replace(/^\//, '');
   const filePath = path.join(STATIC_DIR, relativePath);

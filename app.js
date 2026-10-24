@@ -140,12 +140,22 @@ async function apiFetch(url, options = {}) {
   if (!res.ok) {
     let detail = `Request failed (${res.status})`;
     try {
-      const body = await res.json();
-      detail = body.message || body.detail || body.error || body.title || detail;
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const body = await res.json();
+        detail = body.message || body.detail || body.error || body.title || detail;
+      }
     } catch {}
     throw new Error(detail);
   }
   if (res.status === 204) return null;
+  // Guard: only parse as JSON if the server says it's JSON
+  const ct = res.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) {
+    // Unexpected HTML/text response – treat as an error
+    const text = await res.text();
+    throw new Error(`Expected JSON but got: ${text.slice(0, 80)}`);
+  }
   return res.json();
 }
 
@@ -173,23 +183,30 @@ function formatDateTime(raw) {
 async function checkStatus() {
   try {
     const s = await apiFetch(API_STATUS);
-    setStatusRow('backend', s.backend === 'connected');
-    setStatusRow('mongodb', s.mongodb === 'connected');
-    setStatusRow('mysql',   s.mysql   === 'connected');
+    // 'connected' = green, 'error' = red, 'na' = grey (not applicable for this server)
+    setStatusRow('backend', s.backend === 'connected', s.backend);
+    setStatusRow('mongodb', s.mongodb === 'connected', s.mongodb);
+    setStatusRow('mysql',   s.mysql   === 'connected', s.mysql);
   } catch {
-    setStatusRow('backend', false);
-    setStatusRow('mongodb', false);
-    setStatusRow('mysql',   false);
+    setStatusRow('backend', false, 'error');
+    setStatusRow('mongodb', false, 'error');
+    setStatusRow('mysql',   false, 'error');
   }
 }
 
-function setStatusRow(key, ok) {
+function setStatusRow(key, ok, rawValue) {
   const dot = $(`dot-${key}`);
   const val = $(`val-${key}`);
-  if (dot) { dot.className = `status-dot ${ok ? 'ok' : 'error'}`; }
+  const na  = rawValue === 'na';
+
+  if (dot) {
+    dot.className = `status-dot ${na ? '' : ok ? 'ok' : 'error'}`;
+    if (na) dot.style.background = '#64748b'; // neutral grey
+    else    dot.style.background = '';
+  }
   if (val) {
-    val.textContent = ok ? 'OK' : 'Offline';
-    val.className   = `status-val ${ok ? 'ok' : 'error'}`;
+    val.textContent = na ? 'N/A' : ok ? 'OK' : 'Offline';
+    val.className   = `status-val ${na ? '' : ok ? 'ok' : 'error'}`;
   }
 }
 
@@ -571,7 +588,7 @@ async function loadAuditLogs() {
   const logList  = $('log-list');
   const badgeEl  = $('log-count-badge');
 
-  logList.innerHTML = `<p class="empty-state">Fetching logs from MySQL via JDBC…</p>`;
+  logList.innerHTML = `<p class="empty-state">Fetching audit logs…</p>`;
   notice.classList.add('hidden');
 
   try {
@@ -579,16 +596,38 @@ async function loadAuditLogs() {
     badgeEl.textContent = `${logs.length} entr${logs.length === 1 ? 'y' : 'ies'}`;
     $('nav-logs-count').textContent = logs.length > 99 ? '99+' : logs.length;
 
-    if (logs.length === 0) {
-      logList.innerHTML = `<p class="empty-state">No audit logs yet. Perform a Create, Update, or Delete operation to see entries here.</p>`;
+    // Check if we're running under Node.js (no MySQL) vs Spring Boot
+    const statusData = await apiFetch(API_STATUS).catch(() => ({}));
+    const isNodeServer = statusData.mysql === 'na';
+
+    if (isNodeServer && logs.length === 0) {
+      notice.className = 'info-notice';
+      notice.style.cssText = 'background:#eff6ff;border-color:#bfdbfe;color:#1e40af';
+      notice.classList.remove('hidden');
+      $('mysql-notice-text').textContent =
+        'Running in Node.js dev mode — audit logs are stored in database/audit_logs.json. ' +
+        'Run Spring Boot + MySQL to use real JDBC logging.';
+      logList.innerHTML = `<p class="empty-state">No audit entries yet. Add, edit, or delete a student to create one.</p>`;
       return;
     }
+
+    if (isNodeServer) {
+      notice.className = 'info-notice';
+      notice.style.cssText = 'background:#eff6ff;border-color:#bfdbfe;color:#1e40af';
+      notice.classList.remove('hidden');
+      $('mysql-notice-text').textContent =
+        'Node.js dev mode: logs come from database/audit_logs.json (not MySQL). ' +
+        'Run Spring Boot + MySQL to use real JDBC logging.';
+    }
+
     renderRecentLogs(logs, 'log-list');
   } catch (err) {
     notice.className = 'info-notice error';
+    notice.style.cssText = '';
     notice.classList.remove('hidden');
-    $('mysql-notice-text').textContent = `MySQL is offline or not configured: ${err.message}. Configure DB_USERNAME and DB_PASSWORD environment variables and start MySQL.`;
-    logList.innerHTML = `<p class="empty-state" style="border-color:#fecaca;background:#fef2f2;color:#991b1b;">Audit logs unavailable — MySQL connection failed.</p>`;
+    $('mysql-notice-text').textContent =
+      `Cannot fetch logs: ${err.message}. If using Spring Boot, ensure DB_USERNAME and DB_PASSWORD are set and MySQL is running.`;
+    logList.innerHTML = `<p class="empty-state" style="border-color:#fecaca;background:#fef2f2;color:#991b1b;">Audit logs unavailable.</p>`;
     badgeEl.textContent = '0 entries';
   }
 }
